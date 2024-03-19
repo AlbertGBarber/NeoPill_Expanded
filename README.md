@@ -1,5 +1,5 @@
 # NeoPill
-An Expanded Version of the Blue Pill Neopixel Emulator. Includes new options for LED disk and custom layouts. 
+An expanded version of the Blue Pill Neopixel Emulator. Includes new options for LED disk and custom layouts. 
 
 Otherwise is the same as the original code. 
 
@@ -15,6 +15,7 @@ Or use STM32CubeProgrammer v2.6.0 to flash the Hex file.
 Python code for the PC side is 'stripsym.py', and four YAML config files ledstrip.yaml, ledmatrix.yaml, leddisk.yaml, and ledcustom.yaml.
 
 Command Lines:
+
   python stripsim.py ledstrip.yaml
 
   python stripsim.py ledmatrix.yaml
