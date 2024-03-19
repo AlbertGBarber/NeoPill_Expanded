@@ -25,7 +25,9 @@ timing_T1H, timing_RES config items.
 For python 3.8.1
 
 R. Elwin 5/2021
+A. Barber 3/2024 (disk and custom layout)
 """
+import math 
 import threading
 import queue
 from typing import List, Any
@@ -90,6 +92,13 @@ class LEDStrip(object):
         self.timing_mod = None
         self.strip_type = {}  # data from yaml file
         self.matrix_type = {}  # data from yaml file
+        self.disk_type = {}  # data from yaml file
+        self.gap_deg = 0 # for LED disks
+        self.disk_spacing = 0 # for LED disks
+        self.custom_type = {} # data from yaml file for custom panel
+        self.custom_data = {}
+        self.custom_width = 0
+        self.custom_height = 0
         self.led_count = 0
         self.led_width = 1
         self.led_height = 1
@@ -98,6 +107,7 @@ class LEDStrip(object):
         self.gamma = 0.25  # LEDs are much brighter than LCD, smaller gamma=brighter. HW gamma not supported.
         self.frame_size = 0
         self.display_rate_limit = 1 / 120  # 120Hz display rate limit default, might be too fast still
+        self.display_bg_color = [25, 25, 25] #The background fill color of the display
         self.led_create = None
         self.generate_display = None
         self.read_config(config_path)
@@ -118,6 +128,14 @@ class LEDStrip(object):
                 elif key == "matrix":
                     self.matrix_type = value
                     self.generate_display = self.generate_display_matrix
+                elif key == "disk":
+                    self.disk_type = value
+                    self.generate_display = self.generate_display_disk
+                elif key == "custom":
+                    self.custom_type = value
+                    self.generate_display = self.generate_display_custom
+                elif key == "custom_data":
+                    self.custom_data = value
                 elif key == "timing_T1H":
                     self.timing_mod_T1H = value  # modified timing string
                     print("Using Modified T1H timing", f"{value}")
@@ -151,6 +169,7 @@ class LEDStrip(object):
         strip_width = (self.led_width + self.strip_type[0]['gap']) * self.strip_type[0]['num']
         size = (strip_width, self.strip_type[0]['height'])  # create a strip
         self.screen = pygame.display.set_mode(size, flags=0, display=0)  # vsync=0 default
+        self.screen.fill(self.display_bg_color)
         pygame.display.set_caption(self.strip_type[0]['wname'])
         print(pygame.display.get_driver())
         print(pygame.display.Info())
@@ -162,6 +181,7 @@ class LEDStrip(object):
             rect = surf.get_rect()
             rect.left = i * (self.led_width + self.strip_type[0]['gap'])
             rect.top = 0
+            surf.fill(self.display_bg_color)                
             color = pygame.Color(0, (i * 3) % 256, 10, 255)  # initial RGBA color, also fills in Alpha of RGBA
             self.ledarray.append((surf, rect, color))  # surf_obj[0], rect[1], color[2]
         self.led_format(self.strip_type[0]['style'], self.strip_type[0]['ledcolor'], num)
@@ -177,6 +197,7 @@ class LEDStrip(object):
         strip_height = (self.led_height + self.matrix_type[0]['gap']) * self.matrix_type[0]['matrix_h'] - self.matrix_type[0]['gap']
         size = (strip_width, strip_height)  # display (w,h), adjusted width, height
         self.screen = pygame.display.set_mode(size, flags=0, display=0)  # vsync=0 default
+        self.screen.fill(self.display_bg_color)
         pygame.display.set_caption(self.matrix_type[0]['wname'])
         print(pygame.display.get_driver())
         print(pygame.display.Info())
@@ -189,9 +210,122 @@ class LEDStrip(object):
                 rect = surf.get_rect()
                 rect.left = i * (self.led_width + self.matrix_type[0]['gap'])
                 rect.top = j * (self.led_height + self.matrix_type[0]['gap'])
+                surf.fill(self.display_bg_color)                 
                 color = pygame.Color(j, (i * 3) % 256, 10, 255)  # initial RGBA color, also fills in Alpha of RGBA
                 self.ledarray.append((surf, rect, color))  # surf_obj[0], rect[1], color[2]
         self.led_format(self.matrix_type[0]['style'], self.matrix_type[0]['ledcolor'], num)
+
+    # generate pygame display window filled with LED disk
+    # Code added by Albert Barber
+    def generate_display_disk(self):
+        self.led_create = self.led_create_disk
+        os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (self.disk_type[0]['wposx'], self.disk_type[0]['wposy'])  # window position
+        # iterate over the "num" array from the yaml file, 
+        #tracking how many disks we have and the total number of LEDs
+        num_disks = 0
+        for disk_Num_LEDs in self.disk_type[0]['num']:
+            num_disks += 1
+            self.led_count += disk_Num_LEDs
+        self.led_width = self.disk_type[0]['led_size']
+        # Use the LED size, the outer radius, and the number of disks to determine the spacing between disks
+        # (I use the distance between the mid-points of the LEDs for the spacing, hence the addition of the led_width)
+        self.disk_spacing = (self.disk_type[0]['outer_radius'] + self.led_width) / num_disks 
+        # The total width of the draw space, includes a buffer for the led size, so they aren't up against the edge
+        strip_width = (self.disk_type[0]['outer_radius'] + self.led_width) * 2
+        size = (strip_width, strip_width)  # create the draw area
+        self.screen = pygame.display.set_mode(size, flags=0, display=0)  # vsync=0 default
+        self.screen.fill(self.display_bg_color)
+        pygame.display.set_caption(self.disk_type[0]['wname'])
+        print(pygame.display.get_driver())
+        print(pygame.display.Info())
+
+    # populate LED array with LED surface objects, filled circles or plain squares
+    # the LEDs are arranged in rings
+    def led_create_disk(self, num):
+        # To calculate each disk's radius, we need to track how many disks we've done
+        # We start at -1 b/c we advance the disk_num at the start of the loop, but we need to start from 0
+        disk_num = -1 
+        # Calculate the center point of all the disks, 
+        # we'll use this as the "starting point" when positioning the LEDs
+        center = (self.disk_type[0]['outer_radius'] + self.led_width/2)
+        # We create the rings of leds one by one using ring led counts from the yaml "num" array
+        for disk_Num_LEDs in self.disk_type[0]['num']: 
+            # Advance the disk number used for determining the next disk's radius
+            disk_num += 1
+            for j in range(0, disk_Num_LEDs):
+                surf = pygame.Surface((self.led_width, self.led_width))  # surface object
+                rect = surf.get_rect()
+                # We want to evenly space the leds so we determine a "gap_deg" based on the num
+                self.gap_deg = 360 / disk_Num_LEDs
+                # Determine the radius of the current disk based on its position in the "num" array
+                # Each subsequent disk is assumed to be smaller than the last
+                disk_rad = self.disk_type[0]['outer_radius'] - self.disk_spacing * disk_num
+                # Calc the coordinates using the disk radius and LED number in the disk
+                # Note that most LED rings are oriented with the first LED at the "top" of the disk,
+                # So we offset the LED start points by 90 degs to match
+                rect.left = center + disk_rad * math.cos( math.radians(self.gap_deg * j - 90) )
+                rect.top = center + disk_rad * math.sin( math.radians(self.gap_deg * j - 90) )
+                # If our "disk" is a single LED, it MUST be in the center
+                # I couldn't be bothered to work out the math to make this automatic, so I just hardwired it
+                if(disk_Num_LEDs == 1):
+                    rect.left = center
+                    rect.top = center
+                #set the pre-color and add the LED to the ledarray
+                surf.fill(self.display_bg_color)                        
+                color = pygame.Color(disk_num, (j * 3) % 256, 10, 255)  # initial RGBA color, also fills in Alpha of RGBA
+                self.ledarray.append((surf, rect, color))  # surf_obj[0], rect[1], color[2]
+        self.led_format(self.disk_type[0]['style'], self.disk_type[0]['ledcolor'], num)
+    
+    # Code by Egar Almeida, https://github.com/egaralmeida/NeoPillCustom/tree/main
+    # generate pygame display window filled with custom LED data
+    def generate_display_custom(self):
+        self.led_create = self.led_create_custom
+        os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (self.custom_type[0]['wposx'], self.custom_type[0]['wposy'])  # window position
+        
+        # "inflates" the data according to the specified array in the yaml
+        if(self.custom_type[0]['inflate']):
+            self.custom_data = self.inflate_data(self.custom_data)
+
+        # calculate total leds from new data
+        self.led_count  = 0
+        for arr in self.custom_data:
+            self.led_count += sum(arr)
+        
+        # calculate width and height
+        self.custom_height = len(self.custom_data)
+        self.custom_width = len(max(self.custom_data, key=len))
+
+        self.led_width = int(self.custom_type[0]['length'] / self.custom_width) - self.custom_type[0]['gap']  # gap is symmetric side & bottom
+        strip_width = (self.led_width + self.custom_type[0]['gap']) * self.custom_width - self.custom_type[0]['gap']
+        self.led_height = int(self.custom_type[0]['height'] / self.custom_height) - self.custom_type[0]['gap']
+        strip_height = (self.led_height + self.custom_type[0]['gap']) * self.custom_height - self.custom_type[0]['gap']
+        size = (strip_width, strip_height)  # display (w,h), adjusted width, height
+        self.screen = pygame.display.set_mode(size, flags=0, display=0)  # vsync=0 default
+        self.screen.fill(self.display_bg_color)
+        pygame.display.set_caption(self.custom_type[0]['wname'])
+        print(pygame.display.get_driver())
+        print(pygame.display.Info())
+
+    # Code by Egar Almeida, https://github.com/egaralmeida/NeoPillCustom/tree/main
+    # custom option
+    # TODO: Not major, but if the incoming data includes many LEDs per "pixel" (showing the same value) and
+    # the user sets inflate: false, then this will create all repeated pixels in the same location.
+    def led_create_custom(self, num):
+        
+        for idy, arr in enumerate(self.custom_data):
+            for idx, value in enumerate(arr):
+                if(value > 0):
+                    surf = pygame.Surface((self.led_width, self.led_height))  # surface object
+                    rect = surf.get_rect()
+                    rect.left = idx * (self.led_width + self.custom_type[0]['gap'])
+                    rect.top = idy * (self.led_height + self.custom_type[0]['gap'])
+                    surf.fill(self.display_bg_color)  
+                    color = pygame.Color(idy, (idx * 3) % 256, 10, 255)  # initial RGBA color, also fills in Alpha of RGBA
+                    
+                    for _ in range(0, value):
+                        self.ledarray.append((surf, rect, color)) 
+                
+        self.led_format(self.custom_type[0]['style'], self.custom_type[0]['ledcolor'], num)
 
     # assign LED style, color order, frame size
     def led_format(self, style, ledcolor, num):
@@ -258,6 +392,22 @@ class LEDStrip(object):
                     self.ledarray[k][LEDStrip.IDX_color][j] = c
             # ledarray[k][5][3] = 255     # alpha already populated
             i += 1
+
+    # helper functions
+    def inflate_array(self, array):
+        inflated_array = []
+        for value in array:
+            if value == 0:
+                inflated_array.append(0)
+            else:
+                inflated_array.extend([1] * (value))
+        return inflated_array
+
+    def inflate_data(self, data):
+        inflated_arrays = []
+        for arr in data:
+            inflated_arrays.append(self.inflate_array(arr))
+        return inflated_arrays   
 
 
 class SerialReader(object):

@@ -1,7 +1,7 @@
-# NeoPill LED matrix onfig yaml
+# NeoPill LED matrix config yaml
 
-serial_port: COM9   # which serial port is NeoPill  
-#timing_T1H: 550      # optionally adjust bitstream timing, T1H, RES, in ns
+serial_port: COM3   # which serial port is NeoPill  
+#timing_T1H: 550    # optionally adjust bitstream timing, T1H, RES, in ns
 #timing_RES: 48000
 fps_limit: 60    #limit displayed frame rate
 
@@ -13,11 +13,11 @@ matrix:
     #number of LEDs total = matrix_w*matrix_h, and must match target device
     matrix_w: 16  # number of LEDs across in matrix 
     matrix_h: 16  # number of LEDs high in matrix 
-    length: 1024  # display size in pix
-    height: 1024   #in pix
-    gap: 2        #in pix 0..n, some small inter-pixel gap
+    length: 1000  # display size in pix
+    height: 1000  #in pix
+    gap: 4        #in pix 0..n, some small inter-pixel gap
     style: circle # circle or rect. If many LEDs circles turn into dots!
-    wposx: 20    #x,y window position
+    wposx: 20     #x,y window position
     wposy: 40
     wname: "NeoPill Matrix Demo"    
     

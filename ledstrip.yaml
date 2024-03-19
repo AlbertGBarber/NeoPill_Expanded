@@ -1,19 +1,19 @@
-# NeoPill LED strip onfig yaml
+# NeoPill LED strip config yaml
 
-serial_port: COM9   # which serial port is NeoPill  
-#timing_T1H: 550      # optionally adjust bitstream timing, T1H, RES, in ns
+serial_port: COM3   # which serial port is NeoPill  
+#timing_T1H: 550    # optionally adjust bitstream timing, T1H, RES, in ns
 #timing_RES: 48000
 fps_limit: 60    #limit displayed frame rate
 
 
 strip:
 -   ledcolor: GRB # GRB, GRBW. must match target device
-    num: 576       #number of LEDs must match target device
-    length: 1920  #in pix
-    height: 200   #in pix
-    gap: 0        #in pix 0..n, some small inter-pixel gap
-    style: rect # circle or rect. If many LEDs circles turn into dots!
-    wposx: 20    #x,y window position
+    num: 61       #number of LEDs must match target device
+    length: 1900  #in pix
+    height: 380   #in pix
+    gap: 4        #in pix 0..n, some small inter-pixel gap
+    style: rect   # circle or rect. If many LEDs circles turn into dots!
+    wposx: 20     #x,y window position
     wposy: 40
     wname: "NeoPill Strip Demo"
     
