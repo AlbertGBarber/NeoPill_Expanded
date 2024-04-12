@@ -1,6 +1,6 @@
 # NeoPill LED Disk config yaml
 
-serial_port: COM3   # which serial port is NeoPill  #COM7
+serial_port: COM7   # which serial port is NeoPill  #COM7
 #timing_T1H: 550    # optionally adjust bitstream timing, T1H, RES, in ns
 #timing_RES: 48000
 fps_limit: 60    #limit displayed frame rate
@@ -9,8 +9,8 @@ fps_limit: 60    #limit displayed frame rate
 disk:
 -   ledcolor: GRB # GRB, GRBW. must match target device
     num: [24, 16, 12, 8, 1]  #The disk LED counts in order from largest to smallest
-    outer_radius: 300  #The radius of the outermost disk (largest), sets how large the screen will be
-    led_size: 50   #The width of the leds in px, if they're too large they will overlap!
+    outer_radius: 200  #The radius of the outermost disk (largest), sets how large the screen will be
+    led_size: 40   #The width of the leds in px, if they're too large they will overlap!
     style: circle  # circle or rect.
     wposx: 20      #x,y window position
     wposy: 40

@@ -208,7 +208,10 @@ class LEDStrip(object):
             for i in range(0, self.matrix_type[0]['matrix_w']):
                 surf = pygame.Surface((self.led_width, self.led_height))  # surface object
                 rect = surf.get_rect()
-                rect.left = i * (self.led_width + self.matrix_type[0]['gap'])
+                if(self.matrix_type[0]['serpentine'] and  j % 2): # for handling serpentine layouts (every other row is reversed)
+                    rect.left = (self.matrix_type[0]['matrix_w'] - i - 1) * (self.led_width + self.matrix_type[0]['gap'])
+                else: # normal, not serpentine layout, all the row start points are the same
+                    rect.left = i * (self.led_width + self.matrix_type[0]['gap'])
                 rect.top = j * (self.led_height + self.matrix_type[0]['gap'])
                 surf.fill(self.display_bg_color)                 
                 color = pygame.Color(j, (i * 3) % 256, 10, 255)  # initial RGBA color, also fills in Alpha of RGBA

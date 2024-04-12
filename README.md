@@ -11,6 +11,7 @@ Follow instructions at https://hackaday.io/project/179916-neopill
 
 Or use STM32CubeProgrammer v2.6.0 to flash the Hex file.
 
+Note that for ESP8266's (and possibly ESP32's), you may need to add a single physical LED between the ESP and the Bluepill to help filter the pixel data. 
 
 Python code for the PC side is 'stripsym.py', and four YAML config files ledstrip.yaml, ledmatrix.yaml, leddisk.yaml, and ledcustom.yaml.
 
